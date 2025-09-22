@@ -11,14 +11,25 @@ UNITS = "imperial"  # NWS returns Fahrenheit by default
 def speak(text):
     subprocess.run(["asl-tts", text])
 
-# Convert ZIP to lat/lon using OpenStreetMap Nominatim
 def zip_to_latlon(zip_code):
     url = f"https://nominatim.openstreetmap.org/search?postalcode={zip_code}&country=USA&format=json"
-    response = requests.get(url).json()
-    if not response:
+    headers = {
+        "User-Agent": "AllStarWeatherBot/1.0 (calvin@k0iro.com)"
+    }
+    response = requests.get(url, headers=headers)
+
+    try:
+        data = response.json()
+    except requests.exceptions.JSONDecodeError:
+        print("Failed to decode JSON from Nominatim")
         return None
-    lat = response[0]["lat"]
-    lon = response[0]["lon"]
+
+    if not data:
+        print("No location data returned for ZIP")
+        return None
+
+    lat = data[0]["lat"]
+    lon = data[0]["lon"]
     return lat, lon
 
 # Get forecast from NWS
