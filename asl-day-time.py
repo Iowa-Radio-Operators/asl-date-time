@@ -1,34 +1,37 @@
+import requests
 import datetime
 import subprocess
-from WunderWeather import WunderWeather
 
 # CONFIGURATION
-CALLSIGN = "W0ABC"
+CALLSIGN = "K0IRO"
 ZIP_CODE = "50208"  # Newton, IA
-API_KEY = "your_wunderground_api_key"
-UNITS = "imperial"  # 'metric' for Celsius
+UNITS = "imperial"  # NWS returns Fahrenheit by default
 
 # TTS wrapper
 def speak(text):
     subprocess.run(["asl-tts", text])
 
-# Get weather data
-def get_weather(zip_code):
-    ww = WunderWeather(api_key=API_KEY)
-    current = ww.conditions(zip_code=zip_code)
-    forecast = ww.forecast(zip_code=zip_code)
-
-    if not current or not forecast:
+# Convert ZIP to lat/lon using OpenStreetMap Nominatim
+def zip_to_latlon(zip_code):
+    url = f"https://nominatim.openstreetmap.org/search?postalcode={zip_code}&country=USA&format=json"
+    response = requests.get(url).json()
+    if not response:
         return None
+    lat = response[0]["lat"]
+    lon = response[0]["lon"]
+    return lat, lon
 
-    temp = current.temp_f if UNITS == "imperial" else current.temp_c
-    description = current.weather
+# Get forecast from NWS
+def get_nws_forecast(lat, lon):
+    # Step 1: Get grid info
+    points_url = f"https://api.weather.gov/points/{lat},{lon}"
+    points = requests.get(points_url).json()
+    forecast_url = points["properties"]["forecast"]
 
-    today_forecast = forecast.forecastday[0]
-    high = today_forecast.high_f if UNITS == "imperial" else today_forecast.high_c
-    low = today_forecast.low_f if UNITS == "imperial" else today_forecast.low_c
-
-    return temp, description, high, low
+    # Step 2: Get forecast periods
+    forecast = requests.get(forecast_url).json()
+    periods = forecast["properties"]["periods"]
+    return periods
 
 # Build message
 def build_message():
@@ -37,15 +40,26 @@ def build_message():
     time_str = now.strftime("%I:%M %p")
     greeting = "Good morning" if hour < 12 else "Good evening"
 
-    weather = get_weather(ZIP_CODE)
-    if not weather:
-        return f"{greeting}, this is {CALLSIGN}. The time is {time_str}. Weather data is currently unavailable."
+    latlon = zip_to_latlon(ZIP_CODE)
+    if not latlon:
+        return f"{greeting}, this is {CALLSIGN}. The time is {time_str}. Location lookup failed."
 
-    temp, description, high, low = weather
-    if hour < 12:
-        weather_msg = f"The current temperature is {int(temp)} degrees with {description}. Today's high is {int(high)} and the low is {int(low)}."
+    periods = get_nws_forecast(*latlon)
+    if not periods:
+        return f"{greeting}, this is {CALLSIGN}. The time is {time_str}. Weather data is unavailable."
+
+    # Find current and daily forecast
+    current_period = periods[0]
+    today_high = next((p for p in periods if "High" in p["name"]), None)
+    today_low = next((p for p in periods if "Low" in p["name"]), None)
+
+    temp = current_period["temperature"]
+    description = current_period["shortForecast"]
+
+    if hour < 12 and today_high and today_low:
+        weather_msg = f"The current temperature is {temp} degrees with {description}. Today's high is {today_high['temperature']} and the low is {today_low['temperature']}."
     else:
-        weather_msg = f"The current temperature is {int(temp)} degrees with {description}."
+        weather_msg = f"The current temperature is {temp} degrees with {description}."
 
     return f"{greeting}, this is {CALLSIGN}. The time is {time_str}. {weather_msg}"
 
