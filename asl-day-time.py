@@ -5,7 +5,7 @@ import subprocess
 # CONFIGURATION
 CALLSIGN = "K0IRO"
 ZIP_CODE = "50208"  
-NODE_ID = 12345     # Replace with your actual AllStar node number
+NODE_ID = 656831     # Replace with your actual AllStar node number
 
 # TTS wrapper
 def speak(text):
