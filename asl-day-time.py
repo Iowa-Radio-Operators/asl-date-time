@@ -9,7 +9,7 @@ NODE_ID = 656831     # Replace with your actual AllStar node number
 
 # TTS wrapper
 def speak(text):
-    subprocess.run(["asl-tts", "-n", str(NODE_ID), text])
+    subprocess.run(["asl-tts", "-n", str(NODE_ID), "-t", text])
 
 # Time-based greeting
 def get_greeting(hour):
