@@ -91,11 +91,11 @@ def build_message():
 
     latlon = zip_to_latlon(ZIP_CODE)
     if not latlon:
-        return f"{greeting}, this is {CALLSIGN}. The time is {time_str}. Location lookup failed."
+        return f"{greeting}, this is the {CALLSIGN} Repeater. The time is {time_str}. Location lookup failed."
 
     periods, humidity = get_nws_forecast(*latlon)
     if not periods:
-        return f"{greeting}, this is {CALLSIGN}. The time is {time_str}. Weather data is unavailable."
+        return f"{greeting}, this is the {CALLSIGN} Repeater. The time is {time_str}. Weather data is unavailable."
 
     current_period = periods[0]
     today_high = next((p for p in periods if "High" in p["name"]), None)
@@ -110,7 +110,7 @@ def build_message():
     else:
         weather_msg = f"The current temperature is {temp} degrees with {description}.{humidity_msg}"
 
-    return f"{greeting}, this is {CALLSIGN}. The time is {time_str}. {weather_msg}"
+    return f"{greeting}, this is the {CALLSIGN} Repeater. The time is {time_str}. {weather_msg}"
 
 # Run it
 if __name__ == "__main__":
