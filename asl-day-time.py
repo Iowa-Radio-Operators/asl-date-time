@@ -4,7 +4,7 @@ import subprocess
 
 # CONFIGURATION
 CALLSIGN = "K0IRO"
-ZIP_CODE = "50208"  # Newton, IA
+ZIP_CODE = "50208"
 UNITS = "imperial"  # NWS returns Fahrenheit by default
 
 # TTS wrapper
