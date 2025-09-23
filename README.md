@@ -19,10 +19,11 @@ pip install -r requirements.txt
 Open asl_day_time.py and update the configuration block at the top:
 
 ```bash
-CALLSIGN = "K0IRO"                     # Your repeater's call sign
-ZIP_CODE = "50208"                    # ZIP code for weather lookup
-NODE_ID = 12345                       # Your AllStar node number
-USER_AGENT_EMAIL = "your_email@example.com"  # Used for API header (required)
+CALLSIGN = "K0IRO"
+ZIP_CODE = "50208"
+NODE_ID = 12345
+USER_AGENT_EMAIL = "your_email@example.com"
+VOICE = "rms"  # Options: rms, awb, slt (for flite); en-us+m1, en-us+m2 (for espeak)
 ```
 
 ### 3. Example Output
@@ -32,6 +33,13 @@ Good afternoon, this is the K0IRO Repeater. Today is Tuesday September 23rd and 
 or
 
 Good morning, this is the K0IRO Repeater. Today is Tuesday September 23rd and time is 08:15 AM. The current temperature is 63 degrees with cloudy skies. Today's high is 72 and the low is 58.
+
+### 3. Optional: Choose a Voice
+
+You can customize the voice used for announcements by editing the `VOICE` variable:
+
+```python
+VOICE = "rms"  # Options: rms, awb, slt (flite) | en-us+m1, en-us+m2 (espeak)
 
 ### 4. Schedule with CRON
 
