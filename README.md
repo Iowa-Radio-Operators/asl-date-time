@@ -34,12 +34,6 @@ or
 
 Good morning, this is the K0IRO Repeater. Today is Tuesday September 23rd and time is 08:15 AM. The current temperature is 63 degrees with cloudy skies. Today's high is 72 and the low is 58.
 
-### 3. Optional: Choose a Voice
-
-You can customize the voice used for announcements by editing the `VOICE` variable:
-
-```python
-VOICE = "rms"  # Options: rms, awb, slt (flite) | en-us+m1, en-us+m2 (espeak)
 
 ### 4. Schedule with CRON
 

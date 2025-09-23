@@ -5,13 +5,12 @@ import subprocess
 # CONFIGURATION
 CALLSIGN = "K0IRO"
 ZIP_CODE = "50208"           # Newton, IA
-NODE_ID = 656831              # AllStar node number
+NODE_ID = 656831             # AllStar node number
 USER_AGENT_EMAIL = "calvin@k0iro.com"  # Used for API header (required)
-VOICE = "rms"                # Voice selection (e.g., rms, awb, slt, en-us+m1)
 
 # TTS wrapper
 def speak(text):
-    subprocess.run(["asl-tts", "-n", str(NODE_ID), "-t", text, "-v", VOICE])
+    subprocess.run(["asl-tts", "-n", str(NODE_ID), "-t", text])
 
 # Greeting logic
 def get_greeting(hour):
