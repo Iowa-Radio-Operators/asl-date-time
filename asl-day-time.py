@@ -37,6 +37,14 @@ def normalize_forecast(description):
     else:
         return description
 
+# Add ordinal suffix to day
+def get_day_with_suffix(day):
+    if 11 <= day <= 13:
+        return f"{day}th"
+    last_digit = day % 10
+    suffix = {1: "st", 2: "nd", 3: "rd"}.get(last_digit, "th")
+    return f"{day}{suffix}"
+
 # Convert ZIP to lat/lon using OpenStreetMap
 def zip_to_latlon(zip_code):
     url = f"https://nominatim.openstreetmap.org/search?postalcode={zip_code}&country=USA&format=json"
@@ -75,13 +83,22 @@ def get_nws_forecast(lat, lon):
         print("Error fetching NWS data:", e)
         return None, None
 
+# Get first daytime and nighttime periods
+def get_high_low(periods):
+    high = next((p for p in periods if p["isDaytime"]), None)
+    low = next((p for p in periods if not p["isDaytime"]), None)
+    return high, low
+
 # Build the spoken message
 def build_message():
     now = datetime.datetime.now()
     hour = now.hour
     greeting = get_greeting(hour)
     time_str = now.strftime("%I:%M %p")
-    date_str = now.strftime("%A %B %-d")
+    weekday = now.strftime("%A")
+    month = now.strftime("%B")
+    day_with_suffix = get_day_with_suffix(now.day)
+    date_str = f"{weekday} {month} {day_with_suffix}"
 
     latlon = zip_to_latlon(ZIP_CODE)
     if not latlon:
@@ -92,15 +109,14 @@ def build_message():
         return f"{greeting}, this is the {CALLSIGN} Repeater. Today is {date_str} and time is {time_str}. Weather data is unavailable."
 
     current = periods[0]
-    today_high = next((p for p in periods if "High" in p["name"]), None)
-    today_low = next((p for p in periods if "Low" in p["name"]), None)
+    high, low = get_high_low(periods)
 
     temp = current["temperature"]
     description = normalize_forecast(current["shortForecast"])
     humidity_msg = f" The humidity is {int(humidity)} percent." if humidity and humidity > 60 else ""
 
-    if hour < 12 and today_high and today_low:
-        weather_msg = f"The current temperature is {temp} degrees with {description}.{humidity_msg} Today's high is {today_high['temperature']} and the low is {today_low['temperature']}."
+    if hour < 12 and high and low:
+        weather_msg = f"The current temperature is {temp} degrees with {description}.{humidity_msg} Today's high is {high['temperature']} and the low is {low['temperature']}."
     else:
         weather_msg = f"The current temperature is {temp} degrees with {description}.{humidity_msg}"
 
