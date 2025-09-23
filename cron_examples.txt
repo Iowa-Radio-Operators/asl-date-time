@@ -1,0 +1,2 @@
+15 8 * * * /usr/bin/python3 /path/to/asl_day_time.py
+15 20 * * * /usr/bin/python3 /path/to/asl_day_time.py
