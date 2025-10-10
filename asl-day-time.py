@@ -62,7 +62,7 @@ def zip_to_latlon(zip_code):
         return None
     return data[0]["lat"], data[0]["lon"]
 
-# Get forecast and humidity from NWS
+# Get forecast and observation data from NWS
 def get_nws_forecast(lat, lon):
     try:
         points_url = f"https://api.weather.gov/points/{lat},{lon}"
@@ -76,12 +76,14 @@ def get_nws_forecast(lat, lon):
         obs_response = requests.get(observation_url).json()
         station_id = obs_response["features"][0]["properties"]["stationIdentifier"]
         obs_data = requests.get(f"https://api.weather.gov/stations/{station_id}/observations/latest").json()
-        humidity = obs_data["properties"]["relativeHumidity"]["value"]
 
-        return periods, humidity
+        humidity = obs_data["properties"]["relativeHumidity"]["value"]
+        temperature = obs_data["properties"]["temperature"]["value"]
+
+        return periods, humidity, temperature
     except Exception as e:
         print("Error fetching NWS data:", e)
-        return None, None
+        return None, None, None
 
 # Get first daytime and nighttime periods
 def get_high_low(periods):
@@ -104,21 +106,19 @@ def build_message():
     if not latlon:
         return f"{greeting}, this is the {CALLSIGN} Repeater. Today is {date_str} and time is {time_str}. Location lookup failed."
 
-    periods, humidity = get_nws_forecast(*latlon)
-    if not periods:
+    periods, humidity, temperature = get_nws_forecast(*latlon)
+    if not periods or temperature is None:
         return f"{greeting}, this is the {CALLSIGN} Repeater. Today is {date_str} and time is {time_str}. Weather data is unavailable."
 
-    current = periods[0]
     high, low = get_high_low(periods)
-
-    temp = current["temperature"]
-    description = normalize_forecast(current["shortForecast"])
+    current_forecast = normalize_forecast(periods[0]["shortForecast"])
+    temp = round(temperature) if temperature is not None else "unknown"
     humidity_msg = f" The humidity is {int(humidity)} percent." if humidity and humidity > 60 else ""
 
     if hour < 12 and high and low:
-        weather_msg = f"The current temperature is {temp} degrees with {description}.{humidity_msg} Today's high is {high['temperature']} and the low is {low['temperature']}."
+        weather_msg = f"The current temperature is {temp} degrees with {current_forecast}.{humidity_msg} Today's high is {high['temperature']} and the low is {low['temperature']}."
     else:
-        weather_msg = f"The current temperature is {temp} degrees with {description}.{humidity_msg}"
+        weather_msg = f"The current temperature is {temp} degrees with {current_forecast}.{humidity_msg}"
 
     return f"{greeting}, this is the {CALLSIGN} Repeater. Today is {date_str} and time is {time_str}. {weather_msg}"
 
