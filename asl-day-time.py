@@ -112,13 +112,21 @@ def build_message():
 
     high, low = get_high_low(periods)
     current_forecast = normalize_forecast(periods[0]["shortForecast"])
-    temp = round(temperature) if temperature is not None else "unknown"
+    temp_f = round((temperature * 9/5) + 32) if temperature is not None else "unknown"
     humidity_msg = f" The humidity is {int(humidity)} percent." if humidity and humidity > 60 else ""
 
+    # Base message
+    weather_msg = f"The current temperature is {temp_f} degrees Fahrenheit with {current_forecast}.{humidity_msg}"
+
+    # Add high/low in morning
     if hour < 12 and high and low:
-        weather_msg = f"The current temperature is {temp} degrees with {current_forecast}.{humidity_msg} Today's high is {high['temperature']} and the low is {low['temperature']}."
-    else:
-        weather_msg = f"The current temperature is {temp} degrees with {current_forecast}.{humidity_msg}"
+        weather_msg += f" Today's high is {high['temperature']} and the low is {low['temperature']}."
+
+    # Add tomorrow's forecast in evening
+    if hour >= 18 and len(periods) > 2:
+        tomorrow = periods[2]
+        tomorrow_forecast = normalize_forecast(tomorrow["shortForecast"])
+        weather_msg += f" Tomorrow's forecast is {tomorrow_forecast} with a high of {tomorrow['temperature']} degrees."
 
     return f"{greeting}, this is the {CALLSIGN} Repeater. Today is {date_str} and time is {time_str}. {weather_msg}"
 
