@@ -1,18 +1,29 @@
+#!/usr/bin/env python3
 import requests
 import datetime
 import subprocess
+import os
 
 # CONFIGURATION
 CALLSIGN = "K0IRO"
-ZIP_CODE = "50208"           # Newton, IA
-NODE_ID = 656831             # AllStar node number
+ZIP_CODE = "50168"           # Mingo, IA
+NODE_ID = 656830             # AllStar node number
 USER_AGENT_EMAIL = "calvin@k0iro.com"  # Used for API header (required)
 
-# TTS wrapper
 def speak(text):
-    subprocess.run(["asl-tts", "-n", str(NODE_ID), "-t", text])
+    """Hand off text to asl-tts with a safe environment."""
+    if not text.strip():
+        return
+    env = os.environ.copy()
+    # Force USER so asl-tts passes its check
+    env["USER"] = "asterisk"
+    # Ensure PATH includes /usr/sbin so asterisk is found
+    env["PATH"] = "/usr/sbin:/usr/bin:/bin"
+    subprocess.run(
+        ["asl-tts", "-n", str(NODE_ID), "-t", text],
+        env=env
+    )
 
-# Greeting logic
 def get_greeting(hour):
     if hour < 12:
         return "Good morning"
@@ -21,7 +32,6 @@ def get_greeting(hour):
     else:
         return "Good evening"
 
-# Normalize forecast phrasing
 def normalize_forecast(description):
     desc = description.lower()
     if "rain" in desc:
@@ -37,7 +47,6 @@ def normalize_forecast(description):
     else:
         return description
 
-# Add ordinal suffix to day
 def get_day_with_suffix(day):
     if 11 <= day <= 13:
         return f"{day}th"
@@ -45,53 +54,38 @@ def get_day_with_suffix(day):
     suffix = {1: "st", 2: "nd", 3: "rd"}.get(last_digit, "th")
     return f"{day}{suffix}"
 
-# Convert ZIP to lat/lon using OpenStreetMap
 def zip_to_latlon(zip_code):
     url = f"https://nominatim.openstreetmap.org/search?postalcode={zip_code}&country=USA&format=json"
-    headers = {
-        "User-Agent": f"AllStarWeatherBot/1.0 ({USER_AGENT_EMAIL})"
-    }
+    headers = {"User-Agent": f"AllStarWeatherBot/1.0 ({USER_AGENT_EMAIL})"}
     response = requests.get(url, headers=headers)
-    try:
-        data = response.json()
-    except requests.exceptions.JSONDecodeError:
-        print("Failed to decode JSON from Nominatim")
-        return None
+    data = response.json()
     if not data:
-        print("No location data returned for ZIP")
         return None
     return data[0]["lat"], data[0]["lon"]
 
-# Get forecast and observation data from NWS
 def get_nws_forecast(lat, lon):
-    try:
-        points_url = f"https://api.weather.gov/points/{lat},{lon}"
-        points = requests.get(points_url).json()
-        forecast_url = points["properties"]["forecast"]
-        observation_url = points["properties"]["observationStations"]
+    points_url = f"https://api.weather.gov/points/{lat},{lon}"
+    points = requests.get(points_url).json()
+    forecast_url = points["properties"]["forecast"]
+    observation_url = points["properties"]["observationStations"]
 
-        forecast = requests.get(forecast_url).json()
-        periods = forecast["properties"]["periods"]
+    forecast = requests.get(forecast_url).json()
+    periods = forecast["properties"]["periods"]
 
-        obs_response = requests.get(observation_url).json()
-        station_id = obs_response["features"][0]["properties"]["stationIdentifier"]
-        obs_data = requests.get(f"https://api.weather.gov/stations/{station_id}/observations/latest").json()
+    obs_response = requests.get(observation_url).json()
+    station_id = obs_response["features"][0]["properties"]["stationIdentifier"]
+    obs_data = requests.get(f"https://api.weather.gov/stations/{station_id}/observations/latest").json()
 
-        humidity = obs_data["properties"]["relativeHumidity"]["value"]
-        temperature = obs_data["properties"]["temperature"]["value"]
+    humidity = obs_data["properties"]["relativeHumidity"]["value"]
+    temperature_c = obs_data["properties"]["temperature"]["value"]
 
-        return periods, humidity, temperature
-    except Exception as e:
-        print("Error fetching NWS data:", e)
-        return None, None, None
+    return periods, humidity, temperature_c
 
-# Get first daytime and nighttime periods
 def get_high_low(periods):
     high = next((p for p in periods if p["isDaytime"]), None)
     low = next((p for p in periods if not p["isDaytime"]), None)
     return high, low
 
-# Build the spoken message
 def build_message():
     now = datetime.datetime.now()
     hour = now.hour
@@ -106,23 +100,19 @@ def build_message():
     if not latlon:
         return f"{greeting}, this is the {CALLSIGN} Repeater. Today is {date_str} and time is {time_str}. Location lookup failed."
 
-    periods, humidity, temperature = get_nws_forecast(*latlon)
-    if not periods or temperature is None:
+    periods, humidity, temperature_c = get_nws_forecast(*latlon)
+    if not periods or temperature_c is None:
         return f"{greeting}, this is the {CALLSIGN} Repeater. Today is {date_str} and time is {time_str}. Weather data is unavailable."
 
     high, low = get_high_low(periods)
     current_forecast = normalize_forecast(periods[0]["shortForecast"])
-    temp_f = round((temperature * 9/5) + 32) if temperature is not None else "unknown"
+    temp_f = round((temperature_c * 9/5) + 32) if temperature_c is not None else "unknown"
     humidity_msg = f" The humidity is {int(humidity)} percent." if humidity and humidity > 60 else ""
 
-    # Base message
     weather_msg = f"The current temperature is {temp_f} degrees Fahrenheit with {current_forecast}.{humidity_msg}"
 
-    # Add high/low in morning
     if hour < 12 and high and low:
         weather_msg += f" Today's high is {high['temperature']} and the low is {low['temperature']}."
-
-    # Add tomorrow's forecast in evening
     if hour >= 18 and len(periods) > 2:
         tomorrow = periods[2]
         tomorrow_forecast = normalize_forecast(tomorrow["shortForecast"])
@@ -130,7 +120,6 @@ def build_message():
 
     return f"{greeting}, this is the {CALLSIGN} Repeater. Today is {date_str} and time is {time_str}. {weather_msg}"
 
-# Run it
 if __name__ == "__main__":
     message = build_message()
     print("Speaking:", message)
